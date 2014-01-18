@@ -460,7 +460,7 @@ sub getFilename {
         $zoom, $x, $y );
 }
 
-## download a remove file given an URL and store it in a given local filename
+## download a remote file given an URL and store it in a given local filename
 sub downloadFile {
     my ( $url, $localfilename ) = @_;
 
