@@ -308,6 +308,24 @@ sub parseCmdLineParam {
                 $tilescopyright = "Map data © OpenStreetMap contributors, CC BY-SA";
                 $tilescopyright .= "; tiles courtesy of Stamen Design";
             }
+            elsif ( $tilesource eq "watercolor" ) {
+                $tilesourcename = $tilesource;
+                $baseurl = "http://c.tile.stamen.com/watercolor/%d/%d/%d.jpg";
+                $tilescopyright = "Map data © OpenStreetMap contributors, CC BY-SA";
+                $tilescopyright .= "; tiles courtesy of Stamen Design";
+            }
+            elsif ( $tilesource eq "hikebike" ) {
+                $tilesourcename = $tilesource;
+                $baseurl = "http://toolserver.org/tiles/hikebike/%d/%d/%d.png";
+                $tilescopyright = "Map data © OpenStreetMap contributors, CC BY-SA";
+                $tilescopyright .= "; style courtesy of Colin Marquardt";
+            }
+            elsif ( $tilesource eq "hillshading" ) {
+                $tilesourcename = $tilesource;
+                $baseurl = "http://toolserver.org/~cmarqu/hill/%d/%d/%d.png";
+                $tilescopyright = "Map data © OpenStreetMap contributors, CC BY-SA";
+                $tilescopyright .= "; style courtesy of Colin Marquardt";
+            }
             elsif ( $tilesource eq "white" ) {
                 $tilesourcename = "white";
                 $baseurl        = undef;
@@ -397,6 +415,9 @@ sub HELP_MESSAGE {
     print "                   mapquest\n";
     print "                   toner\n";
     print "                   toner-lines\n";
+    print "                   watercolor\n";
+    print "                   hikebike\n";
+    print "                   hillshading (transparent!)\n";
     print "                   white (no tiles, uses grayscale drawing)\n";
     print "                   transparent (no tiles, uses grayscale drawing)\n";
     print
