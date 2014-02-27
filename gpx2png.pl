@@ -498,16 +498,24 @@ sub getURL {
 ## create file name to store/cache a tile depending on x/y numbering and zoom level
 sub getFilename {
     my ( $x, $y, $zoom ) = @_;
+    my $suffix = $baseurl =~ /\.jpg$/ ? "jpg" : "png";
     return
-      sprintf( $tilesprefix . "-" . $tilesourcename . "-z%03d-x%05d-y%05d.png",
-        $zoom, $x, $y );
+      sprintf( $tilesprefix . "-" . $tilesourcename . "-z%03d-x%05d-y%05d.%s",
+        $zoom, $x, $y, $suffix );
 }
 
 ## download a remote file given an URL and store it in a given local filename
 sub downloadFile {
     my ( $url, $localfilename ) = @_;
 
-    my $res = $ua->simple_request( HTTP::Request->new( GET => $url ) );
+    my $req = HTTP::Request->new( GET => $url );
+    if ( $url =~ /\.jpg$/ ) {
+        $req->header( 'Content-Type' => 'image/jpeg' );
+    }
+    else {
+        $req->header( 'Content-Type' => 'image/png' );
+    }
+    my $res = $ua->simple_request( $req );
     if ( $res->code == 200 ) {
         open( FILE, ">$localfilename" )
           || die "Can't open $localfilename: $!\n";
