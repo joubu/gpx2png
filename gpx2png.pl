@@ -438,7 +438,7 @@ sub HELP_MESSAGE {
     print
 "                Icons are rotated towards track's direction, up is forward\n";
     print
-"  -I N          Distance between the center of two subsequent icons. Default: "
+"  -I N          Distance between the center of two subsequent track icons. Default: "
       . $trackicondist . "\n";
     print "\nGPS tracks (format .gpx) are passed as a list of filenames,\n";
     print "or the .gpx files' content is piped into gpx2png.pl\n";
