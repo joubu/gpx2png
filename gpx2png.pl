@@ -1,4 +1,4 @@
-## Copyright 2009-2012 Thomas Fischer <fischer@unix-ag.uni-kl.de>
+## Copyright 2009-2014 Thomas Fischer <fischer@unix-ag.uni-kl.de>
 
 ##  This Perl script is free software: you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -38,6 +38,14 @@ my $sparse = 0;
 
 ## quiet flag, can be set with  -q
 my $quiet = 0;
+
+## additional "invisible" waypoints: coordinates that
+## are forced to be included in the map, but are not
+## shown or visualized in any way; useful to span
+## bounding boxes: simply add invisible waypoints
+## for two opposing corners of the bounding box;
+## can be set with  -W
+my @invisiblewptlist = ();
 
 ## maximum number of tiles used in autozoom mode
 ## can be set with  -a N
@@ -174,6 +182,16 @@ sub parseCmdLineParam {
         "thumbnailsize|J=i" => \$photosize,
         ## one or more thumbnail filenames
         "thumbnail|j=s" => \@photolist,
+        ## add an invisible waypoint
+        "invisiblewaypoint|W=s" => sub {
+            my $param = $_[1];
+            if ( $param =~ /^([-+]?[0-9]+([.][0-9]+)?)[,;:]([-+]?[0-9]+([.][0-9]+)?)$/ ){
+                push @invisiblewptlist, [ ( $1, $3 ) ];
+            }
+            else {
+                die "Invalid format for \"invisiblewaypoint\", expecting \"latitude-number;longitude-number\"";
+            }
+        },
         ## set zoom level
         "zoom|z=s" => sub {
             my $param = $_[1];
@@ -390,6 +408,10 @@ sub HELP_MESSAGE {
     print
 "                by GPS coordinates in EXIF tag. Multiple -j options possible\n";
     print
+"  -W n.n:n.n    Additional invisible point to be included in the map, useful\n";
+    print
+"                to enforce a bounding box. Format: decimal latitude, colon, longitude\n";
+    print
 "  -J N          Set size of JPEG photo thumbnails. Default: $photosize\n";
     print "  -i FILENAME   Draw icons along a track like a dotted line\n";
     print
@@ -560,6 +582,17 @@ sub determineTiles {
         if ( $ytile < $minytile ) { $minytile = $ytile; }
         $usedtiles{ $xtile . "|" . $ytile } = 1;
     }
+    # go through all "invisible" waypoints
+    for my $wpt (@invisiblewptlist) {
+        my ( $lat, $long ) = @{$wpt};
+        ( my $xtile, my $ytile ) = getTileNumber( $lat, $long, $zoom );
+        if ( $xtile > $maxxtile ) { $maxxtile = $xtile; }
+        if ( $ytile > $maxytile ) { $maxytile = $ytile; }
+        if ( $xtile < $minxtile ) { $minxtile = $xtile; }
+        if ( $ytile < $minytile ) { $minytile = $ytile; }
+        $usedtiles{ $xtile . "|" . $ytile } = 1;
+    }
+
 
     die
 "Invalid input data, no coordinates given minxtile=$minxtile  maxxtile=$maxxtile  minytile=$minytile  maxytile=$maxytile"
