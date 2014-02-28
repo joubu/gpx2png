@@ -135,6 +135,10 @@ my $maxx              = -1000000;
 my $miny              = 1000000;
 my $maxy              = -1000000;
 my $cutborder         = undef;
+my $bbminlong         = undef;
+my $bbmaxlong         = undef;
+my $bbminlat          = undef;
+my $bbmaxlat          = undef;
 my $deltalat          = undef;
 my $deltalong         = undef;
 my $maxlat            = undef;
@@ -190,6 +194,19 @@ sub parseCmdLineParam {
             }
             else {
                 die "Invalid format for \"invisiblewaypoint\", expecting \"latitude-number;longitude-number\"";
+            }
+        },
+        ## specify a bounding box
+        "boundingbox|B=s" => sub {
+            my $param = $_[1];
+            if ( $param =~ /^([-+]?[0-9]+([.][0-9]+)?)[,;:]([-+]?[0-9]+([.][0-9]+)?)[,;:]([-+]?[0-9]+([.][0-9]+)?)[,;:]([-+]?[0-9]+([.][0-9]+)?)$/ ){
+                $bbminlat = $3;
+                $bbmaxlat = $7;
+                $bbminlong = $1;
+                $bbmaxlong = $5;
+            }
+            else {
+                die "Invalid format for \"boundingbox\", expecting \"longitude-number;latitude-number;longitude-number;latitude-number\"";
             }
         },
         ## set zoom level
@@ -432,6 +449,10 @@ sub HELP_MESSAGE {
 "  -W n.n:n.n    Additional invisible point to be included in the map, useful\n";
     print
 "                to enforce a bounding box. Format: decimal latitude, colon, longitude\n";
+    print
+"  -B n:n:n:n    Enforce a bounding box. Format: decimal min latitude, colon/comma,\n";
+    print
+"                min longitude, colon/comma, max latitude, colon/comma, max longitude\n";
     print
 "  -J N          Set size of JPEG photo thumbnails. Default: $photosize\n";
     print "  -i FILENAME   Draw icons along a track like a dotted line\n";
@@ -1001,7 +1022,43 @@ sub drawAllWaypoints {
 
 ## cut image so that a define minimum number of pixels is left around any coordinate
 sub cutImage {
-    if ( defined($cutborder) ) {
+    if ( defined($bbmaxlong) && defined($bbminlong) && defined($bbminlat) && defined($bbmaxlat) ) {
+        my ( $bbminx, $bbminy ) = getPixelPosForCoordinates( $bbminlat, $bbminlong, $zoom );
+        my ( $bbmaxx, $bbmaxy ) = getPixelPosForCoordinates( $bbmaxlat, $bbmaxlong, $zoom );
+
+        if ( $bbmaxx < 0 ) { $bbmaxx = 0; }
+        elsif ( $bbmaxx >= $numxtiles * 256 ) { $bbmaxx = $numxtiles * 256 - 1; }
+        if ( $bbminx < 0 ) { $bbminx = 0; }
+        elsif ( $bbminx >= $numxtiles * 256 ) { $bbminx = $numxtiles * 256 - 1; }
+        if ( $bbmaxy < 0 ) { $bbmaxy = 0; }
+        elsif ( $bbmaxy >= $numytiles * 256 ) {$bbmaxy = $numytiles * 256 - 1; }
+        if ( $bbminy < 0 ) { $bbminy = 0; }
+        elsif ( $bbminy >= $numytiles * 256 ) {$bbminy = $numytiles * 256 - 1; }
+
+        if ( $bbminx != $bbmaxx && $bbminy != $bbmaxy ) {
+            if ( $bbminx>$bbmaxx ) {
+                my $swap = $bbminx; $bbminx = $bbmaxx; $bbmaxx = $swap;
+            }
+            if ( $bbminy>$bbmaxy ) {
+                my $swap = $bbminy; $bbminy = $bbmaxy; $bbmaxy = $swap;
+            }
+            $pxwidth = $bbmaxx - $bbminx + 1;
+            $pxheight = $bbmaxy - $bbminy + 1;
+
+            print "Cutting image to size " . $pxwidth . "x" . $pxheight . "\n";
+
+            my $w =
+              $image->Crop( geometry => $pxwidth . "x" . $pxheight . "+"
+              . $bbminx . "+" . $bbminy );
+            die "$w" if "$w";
+
+            ## repage image
+            $image->Set( page => "0x0+0+0" );
+            die "$w" if "$w";
+        } else {
+            print "Bounding box does not cover drawn area\n";
+        }
+    } elsif ( defined($cutborder) ) {
         $pxwidth  = int( $maxx - $minx + 2 * $cutborder );
         $pxheight = int( $maxy - $miny + 2 * $cutborder );
 
