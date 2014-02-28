@@ -190,10 +190,10 @@ sub parseCmdLineParam {
         "invisiblewaypoint|W=s" => sub {
             my $param = $_[1];
             if ( $param =~ /^([-+]?[0-9]+([.][0-9]+)?)[,;:]([-+]?[0-9]+([.][0-9]+)?)$/ ){
-                push @invisiblewptlist, [ ( $1, $3 ) ];
+                push @invisiblewptlist, [ ( $3, $1 ) ];
             }
             else {
-                die "Invalid format for \"invisiblewaypoint\", expecting \"latitude-number;longitude-number\"";
+                die "Invalid format for \"invisiblewaypoint\", expecting \"longitude-number;latitude-number\"";
             }
         },
         ## specify a bounding box
@@ -446,9 +446,9 @@ sub HELP_MESSAGE {
     print
 "                by GPS coordinates in EXIF tag. Multiple -j options possible\n";
     print
-"  -W n.n:n.n    Additional invisible point to be included in the map, useful\n";
+"  -W n.n:n.n    Additional invisible point to be included in the map.\n";
     print
-"                to enforce a bounding box. Format: decimal latitude, colon, longitude\n";
+"                Format: decimal latitude, colon/comma, longitude\n";
     print
 "  -B n:n:n:n    Enforce a bounding box. Format: decimal min latitude, colon/comma,\n";
     print
