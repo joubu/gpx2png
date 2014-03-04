@@ -554,12 +554,12 @@ sub downloadFile {
 sub readGPXfromFile {
     my $handle             = $_[0];
     my @internaltrkseglist = ();
-    my $scientifict_notation = qr/[+\-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+\-]?\d+)?/; # from http://stackoverflow.com/a/658662/869019
+    my $scientific_notation = qr/[+\-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+\-]?\d+)?/; # from http://stackoverflow.com/a/658662/869019
     my $retrkpt            = qr/trkpt\s+([^>]+)/;
-    my $relat              = qr/lat=["']($scientifict_notation)["']/;
-    my $relon              = qr/lon=["']($scientifict_notation)["']/;
+    my $relat              = qr/lat=["']($scientific_notation)["']/;
+    my $relon              = qr/lon=["']($scientific_notation)["']/;
     my $retrkseg           = qr/\/trkseg/;
-    my $rewpt    = qr/^<wpt lat=["']($scientifict_notation)["'] lon=["']($scientifict_notation)["']/;
+    my $rewpt    = qr/^<wpt lat=["']($scientific_notation)["'] lon=["']($scientific_notation)["']/;
     my $rewpttag = qr/<([^>]+)>(.*?)<\/\1>/;
     my $rewptend = qr/\/wpt/;
 
