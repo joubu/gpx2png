@@ -97,8 +97,6 @@ my %scalestyle = (
 ## before drawing tracks on this background
 my %backgroundpostprocess = ( saturation => 30.0, brightness => 110.0 );
 
-# my %backgroundpostprocess = ( saturation => 0.0, brightness => 110.0 );
-
 ## caching directory, where to put the tiles followed by a file prefix
 ## default is current directory, prefix is "tile"
 my $tilesprefix = "tile";
@@ -279,6 +277,22 @@ sub parseCmdLineParam {
 "radius for waypoint circles set but invalid; must be number in 1..512 or \"auto\"";
             }
         },
+        ## post-process background tiles
+        "backgroundpostprocess=s" => sub {
+            my $param = $_[1];
+            if ( $param eq "normal" ) {
+               undef %backgroundpostprocess;
+            }
+            elsif ( $param eq "gray" || $param eq "grey" ) {
+                %backgroundpostprocess = ( saturation => 0.0 );
+            }
+            elsif ( $param eq "brightgray" || $param eq "brightgrey" ) {
+                %backgroundpostprocess = ( saturation => 0.0, brightness => 110.0 );
+            }
+            else {
+                %backgroundpostprocess = ( saturation => 30.0, brightness => 110.0 );
+            }
+        },
         ## select source of images tiles
         "tiles|t=s" => sub {
             my $tilesource = $_[1];
@@ -425,7 +439,7 @@ sub HELP_MESSAGE {
       . ( defined($doanimate) ? "on" : "off" ) . "\n";
     print
 "  -t SOURCE     Select the source of image tiles. Possible values for SOURCE:\n";
-    print "                   standard   (default)\n";
+    print "                   standard    (default)\n";
     print "                   cyclemap\n";
     print "                   transport\n";
     print "                   opnvkarte\n";
@@ -437,6 +451,15 @@ sub HELP_MESSAGE {
     print "                   hillshading (transparent!)\n";
     print "                   white (no tiles, uses grayscale drawing)\n";
     print "                   transparent (no tiles, uses grayscale drawing)\n";
+    print
+"  --backgroundpostprocess MODE\n";
+    print
+"                Post-process the background (e.g. tiles) by changing\n";
+    print "                saturation and brightness. Possible values for MODE:\n";
+    print "                   normal     (no change)\n";
+    print "                   bright\n";
+    print "                   brightgrey (default)\n";
+    print "                   grey\n";
     print
 "  -s            Sparse mode: Include only tiles touched by GPS tracks. Default: off\n";
     print
@@ -792,7 +815,7 @@ sub initializeBackgroundImage {
             }
         }
 
-        $w = $image->Modulate(%backgroundpostprocess);
+        $w = $image->Modulate(%backgroundpostprocess) if (%backgroundpostprocess);
         die "\n$w" if "$w";
     }
     elsif ( defined($tilesourcename) && $tilesourcename eq "white" ) {
