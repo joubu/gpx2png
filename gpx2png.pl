@@ -152,7 +152,7 @@ my $trackiconfilename = undef;
 my $trackicondist     = 20;
 
 $|             = 1;            # disable buffering of print/STDOUT
-$main::VERSION = "20120830";
+$main::VERSION = "20140326";
 
 my $ua = LWP::UserAgent->new(
     agent      => "gpx2png",
@@ -415,7 +415,7 @@ sub HELP_MESSAGE {
     print "\nThis programs converts .gpx files (GPS tracks) into PNG images\n";
     print "by using images tiles from the OpenStreetMap project\n";
     print "and drawing sequences of lines corresponding to GPS points.\n\n";
-    print "Copyright 2009-2012 Thomas Fischer <fischer\@unix-ag.uni-kl.de>\n";
+    print "Copyright 2009-2014 Thomas Fischer <fischer\@unix-ag.uni-kl.de>\n";
     print
 "This code is released under the GNU Public Licence version 3 or any later version.\n\n";
     print "This script is called like\n";
