@@ -821,6 +821,7 @@ sub initializeBackgroundImage {
 
         $w = $image->Modulate(%backgroundpostprocess) if (%backgroundpostprocess);
         die "\n$w" if "$w";
+        $image->AutoLevel();
     }
     elsif ( defined($tilesourcename) && $tilesourcename eq "white" ) {
         $image->Draw(
