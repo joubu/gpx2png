@@ -366,6 +366,10 @@ sub parseCmdLineParam {
                 $tilesourcename = undef;
                 $baseurl        = undef;
                 $tilescopyright = undef;
+            } elsif ( $tilesource eq "thunderforest" ) {
+                $tilesourcename = $tilesource;
+                $baseurl = "http://a.tile.thunderforest.com/landscape/%d/%d/%d.png";
+                $tilescopyright = "Maps © Thunderforest, Data © OpenStreetMap contributors, CC BY-SA 2.0";
             }
 
             if (   ( $tilesource eq "white" )
