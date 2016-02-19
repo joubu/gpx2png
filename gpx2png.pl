@@ -95,7 +95,7 @@ my %scalestyle = (
 
 ## how to post-process the background image (all tiles)
 ## before drawing tracks on this background
-my %backgroundpostprocess = ( saturation => 30.0, brightness => 110.0 );
+my %backgroundpostprocess = ( saturation => 100.0 );
 
 ## caching directory, where to put the tiles followed by a file prefix
 ## default is current directory, prefix is "tile"
