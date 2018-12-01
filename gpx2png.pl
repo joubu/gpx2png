@@ -32,6 +32,11 @@ my $useautozoom = $zoom eq "auto";
 ## for each drawn track, can be set with  -A
 my $doanimate = undef;
 
+my $red = undef;
+my $green = undef;
+my $blue = undef;
+my $alpha = undef;
+
 ## sparse map flag (draw only tiles touched by tracks)
 ## can be set with  -s
 my $sparse = 0;
@@ -103,6 +108,7 @@ my $tilesprefix = "tile";
 
 ## tile URLs
 my $baseurl        = "http://b.tile.openstreetmap.org/%d/%d/%d.png";
+my $tilesource = undef;
 my $tilesourcename = "standard";
 my $tilescopyright = "© OpenStreetMap contributors, CC BY-SA";
 
@@ -207,6 +213,22 @@ sub parseCmdLineParam {
                 die "Invalid format for \"boundingbox\", expecting \"longitude-number;latitude-number;longitude-number;latitude-number\"";
             }
         },
+	"trackcolor|C=s" => sub {
+            my $param = $_[1];
+            if ( $param =~ /^([0-9.]+),([0-9.]+),([0-9.]+),([0-9.]+)$/ ){
+		    $red = $1;
+		    $green = $2;
+		    $blue = $3;
+		    $alpha = $4;
+	    }
+	    else {
+		    die "Invalid format for track color, expecting R,G,B,A values (0-255 for RGB, 0-1 for alpha)"
+	    }
+            if ( $alpha > 1.0 ) {
+                    die "Alpha not in range (0.0 - 1.0)" ;
+            }
+    },
+
         ## set zoom level
         "zoom|z=s" => sub {
             my $param = $_[1];
@@ -295,7 +317,7 @@ sub parseCmdLineParam {
         },
         ## select source of images tiles
         "tiles|t=s" => sub {
-            my $tilesource = $_[1];
+            $tilesource = $_[1];
 
             if ( $tilesource eq "cyclemap" || $tilesource eq "cycle" ) {
                 $tilesourcename = "cyclemap";
@@ -372,21 +394,25 @@ sub parseCmdLineParam {
                 $tilescopyright = "Maps © Thunderforest, Data © OpenStreetMap contributors, CC BY-SA 2.0";
             }
 
-            if (   ( $tilesource eq "white" )
-                || ( $tilesource eq "transparent" ) )
-            {
-
-                # switch to grayscale drawing, which allows to draw tracks
-                # in layers of adding shades of gray
-                @drawingcolors = ('graya(0%, 0.0)');
-                %drawingstylelowerlayer =
-                  ( linewidth => 1, fill => 'graya(0%, 0.0)' );
-                %drawingstyleupperlayer =
-                  ( stroke => 'graya(0%, 0.4)', fill => 'graya(0%, 0.0)' );
-            }
-        }
+    }
     );
 
+    if ( ( $tilesource eq "white" ) || ( $tilesource eq "transparent" ) )
+    {
+	# switch to grayscale drawing, which allows to draw tracks
+	# in layers of adding shades of gray
+	@drawingcolors = ('graya(0%, 0.0)');
+	%drawingstylelowerlayer = ( linewidth => 1, fill => 'graya(0%, 0.0)' );
+        # if colors were defined on a command line, use them instead of grayscale
+	if (defined($red)) {
+	%drawingstyleupperlayer = ( stroke => 'rgba(' . $red . ',' . $green . ',' . $blue . ',' . $alpha . ')', fill => 'graya(0%, 0.0)' );
+  }
+	 else
+	  {
+	%drawingstyleupperlayer = ( stroke => 'graya(0%, 0.4)', fill => 'graya(0%, 0.0)' );
+          }
+    }
+    #
     ## print all set flags (if not quiet)
     if ( $quiet == 0 ) {
         print "Sparse mode is " . ( $sparse == 1 ? "ON" : "OFF" ) . "\n";
@@ -405,6 +431,9 @@ sub parseCmdLineParam {
           . " thumbnail photo"
           . ( $#photolist == 0 ? "" : "s" )
           . " given\n";
+        print "Drawing style: ";
+        print "$_ $drawingstyleupperlayer{$_}," for (keys %drawingstyleupperlayer);
+        print "\n";
         print "Output file is " . $outputfilename . "\n";
         print "Using icon \""
           . $trackiconfilename
@@ -480,6 +509,8 @@ sub HELP_MESSAGE {
 "  -B n:n:n:n    Enforce a bounding box. Format: decimal min latitude, colon/comma,\n";
     print
 "                min longitude, colon/comma, max latitude, colon/comma, max longitude\n";
+    print
+"  -C R,G,B,A    Track color when white/transparent mode is enabled. Alpha is between 0 and 1.\n";
     print
 "  -J N          Set size of JPEG photo thumbnails. Default: $photosize\n";
     print "  -i FILENAME   Draw icons along a track like a dotted line\n";
