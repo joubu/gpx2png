@@ -39,6 +39,9 @@ my $sparse = 0;
 ## quiet flag, can be set with  -q
 my $quiet = 0;
 
+## early_crop flag, can be set with  -e
+my $early_crop = 0;
+
 ## additional "invisible" waypoints: coordinates that
 ## are forced to be included in the map, but are not
 ## shown or visualized in any way; useful to span
@@ -198,10 +201,10 @@ sub parseCmdLineParam {
         "boundingbox|B=s" => sub {
             my $param = $_[1];
             if ( $param =~ /^([-+]?[0-9]+([.][0-9]+)?)[,;:]([-+]?[0-9]+([.][0-9]+)?)[,;:]([-+]?[0-9]+([.][0-9]+)?)[,;:]([-+]?[0-9]+([.][0-9]+)?)$/ ){
-                $bbminlat = $3;
-                $bbmaxlat = $7;
-                $bbminlong = $1;
-                $bbmaxlong = $5;
+                $bbminlat = $1;
+                $bbmaxlat = $5;
+                $bbminlong = $3;
+                $bbmaxlong = $7;
             }
             else {
                 die "Invalid format for \"boundingbox\", expecting \"longitude-number;latitude-number;longitude-number;latitude-number\"";
@@ -384,7 +387,8 @@ sub parseCmdLineParam {
                 %drawingstyleupperlayer =
                   ( stroke => 'graya(0%, 0.4)', fill => 'graya(0%, 0.0)' );
             }
-        }
+        },
+	"early_crop|e" => sub { $early_crop = 1 },
     );
 
     ## print all set flags (if not quiet)
@@ -436,6 +440,11 @@ sub HELP_MESSAGE {
     print
 "  -c N          Cut final map to have N pixels around the drawn tracks. Default: "
       . ( !defined($cutborder) ? "none" : $cutborder . " pixel" ) . "\n";
+    print
+"  -e            Apply bounding box in early stages (during image initializations may have huge\n";
+    print
+"                performance benefit if original (uncut) image cannot fit into memory. Default: "
+      . ( $early_crop ? "on" : "off" ) . "\n";
     print
 "  -r N          Radius for waypoint circles. Default: $waypointcircleradius\n";
     print "  -A            Create animation steps by saving individual images\n"
@@ -643,6 +652,15 @@ sub determineTiles {
     for my $trkseg (@trkseglist) {
         foreach my $trkpt ( @{$trkseg} ) {
             my ( $lat, $long ) = @{$trkpt};
+	     # ignore trackpoints outside bounding box if early_crop is set
+	     if ( defined($bbminlat) and
+		  $early_crop and
+		  not ( $lat > $bbminlat and
+			$lat < $bbmaxlat and
+			$long > $bbminlong and
+			$long < $bbmaxlong )) {
+                     next
+			}
             ( my $xtile, my $ytile ) = getTileNumber( $lat, $long, $zoom );
             if ( $xtile > $maxxtile ) { $maxxtile = $xtile; }
             if ( $ytile > $maxytile ) { $maxytile = $ytile; }
@@ -651,8 +669,19 @@ sub determineTiles {
             $usedtiles{ $xtile . "|" . $ytile } = 1;
         }
     }
+    print "minxtile, maxxtile: ", $minxtile, " ", $maxxtile, "\n";
+    print "minytile, maxytile: ", $minytile, " ", $maxytile, "\n";
     for my $wpt (@wptlist) {
         my ( $lat, $long ) = @{$wpt};
+        # ignore waypoints outside bounding box if early_crop is set
+        if ( defined($bbminlat) and
+	     $early_crop and
+	     not ( $lat > $bbminlat and
+		   $lat < $bbmaxlat and
+		   $long > $bbminlong and
+		   $long < $bbmaxlong )) {
+                     next
+		   }
         ( my $xtile, my $ytile ) = getTileNumber( $lat, $long, $zoom );
         if ( $xtile > $maxxtile ) { $maxxtile = $xtile; }
         if ( $ytile > $maxytile ) { $maxytile = $ytile; }
@@ -663,6 +692,15 @@ sub determineTiles {
     # go through all "invisible" waypoints
     for my $wpt (@invisiblewptlist) {
         my ( $lat, $long ) = @{$wpt};
+        # ignore waypoints outside bounding box if early_crop is set
+        if ( defined($bbminlat) and
+	     $early_crop and
+	     not ( $lat > $bbminlat and
+		   $lat < $bbmaxlat and
+		   $long > $bbminlong and
+		   $long < $bbmaxlong )) {
+                     next
+		   }
         ( my $xtile, my $ytile ) = getTileNumber( $lat, $long, $zoom );
         if ( $xtile > $maxxtile ) { $maxxtile = $xtile; }
         if ( $ytile > $maxytile ) { $maxytile = $ytile; }
