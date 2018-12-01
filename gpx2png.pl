@@ -400,7 +400,7 @@ sub parseCmdLineParam {
 	"early_crop|e" => sub { $early_crop = 1 }
     );
 
-    if (( $tilesourcename eq "white" ) || ( $tilesourcename eq "transparent" ))
+    if (( $tilesource eq "white" ) || ( $tilesource eq "transparent" ))
     {
 	# switch to grayscale drawing, which allows to draw tracks
 	# in layers of adding shades of gray
