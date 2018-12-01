@@ -111,7 +111,7 @@ my $tilesprefix = "tile";
 
 ## tile URLs
 my $baseurl        = "http://b.tile.openstreetmap.org/%d/%d/%d.png";
-my $tilesource = undef;
+my $tilesource = "standard";
 my $tilesourcename = "standard";
 my $tilescopyright = "© OpenStreetMap contributors, CC BY-SA";
 
@@ -397,11 +397,10 @@ sub parseCmdLineParam {
                 $tilescopyright = "Maps © Thunderforest, Data © OpenStreetMap contributors, CC BY-SA 2.0";
             }
         },
-	"early_crop|e" => sub { $early_crop = 1 },
-    }
+	"early_crop|e" => sub { $early_crop = 1 }
     );
 
-    if ( ( $tilesource eq "white" ) || ( $tilesource eq "transparent" ) )
+    if (( $tilesourcename eq "white" ) || ( $tilesourcename eq "transparent" ))
     {
 	# switch to grayscale drawing, which allows to draw tracks
 	# in layers of adding shades of gray
@@ -446,7 +445,7 @@ sub parseCmdLineParam {
           . " pixels\n"
           if ( defined($trackiconfilename) );
     }
-}
+    }
 
 sub HELP_MESSAGE {
     print "\nThis programs converts .gpx files (GPS tracks) into PNG images\n";
@@ -1121,8 +1120,8 @@ sub drawAllWaypoints {
 ## cut image so that a define minimum number of pixels is left around any coordinate
 sub cutImage {
     if ( defined($bbmaxlong) && defined($bbminlong) && defined($bbminlat) && defined($bbmaxlat) ) {
-        my ( $bbminx, $bbminy ) = getPixelPosForCoordinates( $bbminlat, $bbminlong, $zoom );
-        my ( $bbmaxx, $bbmaxy ) = getPixelPosForCoordinates( $bbmaxlat, $bbmaxlong, $zoom );
+        my ( $bbminx, $bbminy ) = getPixelPosForCoordinates( $bbminlong, $bbminlat, $zoom );
+        my ( $bbmaxx, $bbmaxy ) = getPixelPosForCoordinates( $bbmaxlong, $bbmaxlat, $zoom );
 
         if ( $bbmaxx < 0 ) { $bbmaxx = 0; }
         elsif ( $bbmaxx >= $numxtiles * 256 ) { $bbmaxx = $numxtiles * 256 - 1; }
