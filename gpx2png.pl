@@ -197,7 +197,7 @@ sub parseCmdLineParam {
         "invisiblewaypoint|W=s" => sub {
             my $param = $_[1];
             if ( $param =~ /^([-+]?[0-9]+([.][0-9]+)?)[,;:]([-+]?[0-9]+([.][0-9]+)?)$/ ){
-                push @invisiblewptlist, [ ( $3, $1 ) ];
+                push @invisiblewptlist, [ ( $1, $3 ) ];
             }
             else {
                 die "Invalid format for \"invisiblewaypoint\", expecting \"longitude-number;latitude-number\"";
