@@ -32,12 +32,20 @@ my $useautozoom = $zoom eq "auto";
 ## for each drawn track, can be set with  -A
 my $doanimate = undef;
 
+my $red = undef;
+my $green = undef;
+my $blue = undef;
+my $alpha = undef;
+
 ## sparse map flag (draw only tiles touched by tracks)
 ## can be set with  -s
 my $sparse = 0;
 
 ## quiet flag, can be set with  -q
 my $quiet = 0;
+
+## early_crop flag, can be set with  -e
+my $early_crop = 0;
 
 ## additional "invisible" waypoints: coordinates that
 ## are forced to be included in the map, but are not
@@ -103,6 +111,7 @@ my $tilesprefix = "tile";
 
 ## tile URLs
 my $baseurl        = "http://b.tile.openstreetmap.org/%d/%d/%d.png";
+my $tilesource = "standard";
 my $tilesourcename = "standard";
 my $tilescopyright = "© OpenStreetMap contributors, CC BY-SA";
 
@@ -188,7 +197,7 @@ sub parseCmdLineParam {
         "invisiblewaypoint|W=s" => sub {
             my $param = $_[1];
             if ( $param =~ /^([-+]?[0-9]+([.][0-9]+)?)[,;:]([-+]?[0-9]+([.][0-9]+)?)$/ ){
-                push @invisiblewptlist, [ ( $3, $1 ) ];
+                push @invisiblewptlist, [ ( $1, $3 ) ];
             }
             else {
                 die "Invalid format for \"invisiblewaypoint\", expecting \"longitude-number;latitude-number\"";
@@ -198,15 +207,31 @@ sub parseCmdLineParam {
         "boundingbox|B=s" => sub {
             my $param = $_[1];
             if ( $param =~ /^([-+]?[0-9]+([.][0-9]+)?)[,;:]([-+]?[0-9]+([.][0-9]+)?)[,;:]([-+]?[0-9]+([.][0-9]+)?)[,;:]([-+]?[0-9]+([.][0-9]+)?)$/ ){
-                $bbminlat = $3;
-                $bbmaxlat = $7;
-                $bbminlong = $1;
-                $bbmaxlong = $5;
+                $bbminlat = $1;
+                $bbmaxlat = $5;
+                $bbminlong = $3;
+                $bbmaxlong = $7;
             }
             else {
                 die "Invalid format for \"boundingbox\", expecting \"longitude-number;latitude-number;longitude-number;latitude-number\"";
             }
         },
+	"trackcolor|C=s" => sub {
+            my $param = $_[1];
+            if ( $param =~ /^([0-9.]+),([0-9.]+),([0-9.]+),([0-9.]+)$/ ){
+		    $red = $1;
+		    $green = $2;
+		    $blue = $3;
+		    $alpha = $4;
+	    }
+	    else {
+		    die "Invalid format for track color, expecting R,G,B,A values (0-255 for RGB, 0-1 for alpha)"
+	    }
+            if ( $alpha > 1.0 ) {
+                    die "Alpha not in range (0.0 - 1.0)" ;
+            }
+    },
+
         ## set zoom level
         "zoom|z=s" => sub {
             my $param = $_[1];
@@ -295,7 +320,7 @@ sub parseCmdLineParam {
         },
         ## select source of images tiles
         "tiles|t=s" => sub {
-            my $tilesource = $_[1];
+            $tilesource = $_[1];
 
             if ( $tilesource eq "cyclemap" || $tilesource eq "cycle" ) {
                 $tilesourcename = "cyclemap";
@@ -371,22 +396,26 @@ sub parseCmdLineParam {
                 $baseurl = "http://a.tile.thunderforest.com/landscape/%d/%d/%d.png";
                 $tilescopyright = "Maps © Thunderforest, Data © OpenStreetMap contributors, CC BY-SA 2.0";
             }
-
-            if (   ( $tilesource eq "white" )
-                || ( $tilesource eq "transparent" ) )
-            {
-
-                # switch to grayscale drawing, which allows to draw tracks
-                # in layers of adding shades of gray
-                @drawingcolors = ('graya(0%, 0.0)');
-                %drawingstylelowerlayer =
-                  ( linewidth => 1, fill => 'graya(0%, 0.0)' );
-                %drawingstyleupperlayer =
-                  ( stroke => 'graya(0%, 0.4)', fill => 'graya(0%, 0.0)' );
-            }
-        }
+        },
+	"early_crop|e" => sub { $early_crop = 1 }
     );
 
+    if (( $tilesource eq "white" ) || ( $tilesource eq "transparent" ))
+    {
+	# switch to grayscale drawing, which allows to draw tracks
+	# in layers of adding shades of gray
+	@drawingcolors = ('graya(0%, 0.0)');
+	%drawingstylelowerlayer = ( linewidth => 1, fill => 'graya(0%, 0.0)' );
+        # if colors were defined on a command line, use them instead of grayscale
+	if (defined($red)) {
+	%drawingstyleupperlayer = ( stroke => 'rgba(' . $red . ',' . $green . ',' . $blue . ',' . $alpha . ')', fill => 'graya(0%, 0.0)' );
+  }
+	 else
+	  {
+	%drawingstyleupperlayer = ( stroke => 'graya(0%, 0.4)', fill => 'graya(0%, 0.0)' );
+          }
+    }
+    #
     ## print all set flags (if not quiet)
     if ( $quiet == 0 ) {
         print "Sparse mode is " . ( $sparse == 1 ? "ON" : "OFF" ) . "\n";
@@ -405,6 +434,9 @@ sub parseCmdLineParam {
           . " thumbnail photo"
           . ( $#photolist == 0 ? "" : "s" )
           . " given\n";
+        print "Drawing style: ";
+        print "$_ $drawingstyleupperlayer{$_}," for (keys %drawingstyleupperlayer);
+        print "\n";
         print "Output file is " . $outputfilename . "\n";
         print "Using icon \""
           . $trackiconfilename
@@ -413,7 +445,7 @@ sub parseCmdLineParam {
           . " pixels\n"
           if ( defined($trackiconfilename) );
     }
-}
+    }
 
 sub HELP_MESSAGE {
     print "\nThis programs converts .gpx files (GPS tracks) into PNG images\n";
@@ -436,6 +468,11 @@ sub HELP_MESSAGE {
     print
 "  -c N          Cut final map to have N pixels around the drawn tracks. Default: "
       . ( !defined($cutborder) ? "none" : $cutborder . " pixel" ) . "\n";
+    print
+"  -e            Apply bounding box in early stages (during image initializations may have huge\n";
+    print
+"                performance benefit if original (uncut) image cannot fit into memory. Default: "
+      . ( $early_crop ? "on" : "off" ) . "\n";
     print
 "  -r N          Radius for waypoint circles. Default: $waypointcircleradius\n";
     print "  -A            Create animation steps by saving individual images\n"
@@ -480,6 +517,8 @@ sub HELP_MESSAGE {
 "  -B n:n:n:n    Enforce a bounding box. Format: decimal min latitude, colon/comma,\n";
     print
 "                min longitude, colon/comma, max latitude, colon/comma, max longitude\n";
+    print
+"  -C R,G,B,A    Track color when white/transparent mode is enabled. Alpha is between 0 and 1.\n";
     print
 "  -J N          Set size of JPEG photo thumbnails. Default: $photosize\n";
     print "  -i FILENAME   Draw icons along a track like a dotted line\n";
@@ -643,6 +682,15 @@ sub determineTiles {
     for my $trkseg (@trkseglist) {
         foreach my $trkpt ( @{$trkseg} ) {
             my ( $lat, $long ) = @{$trkpt};
+	     # ignore trackpoints outside bounding box if early_crop is set
+	     if ( defined($bbminlat) and
+		  $early_crop and
+		  not ( $lat > $bbminlat and
+			$lat < $bbmaxlat and
+			$long > $bbminlong and
+			$long < $bbmaxlong )) {
+                     next
+			}
             ( my $xtile, my $ytile ) = getTileNumber( $lat, $long, $zoom );
             if ( $xtile > $maxxtile ) { $maxxtile = $xtile; }
             if ( $ytile > $maxytile ) { $maxytile = $ytile; }
@@ -651,8 +699,19 @@ sub determineTiles {
             $usedtiles{ $xtile . "|" . $ytile } = 1;
         }
     }
+    print "minxtile, maxxtile: ", $minxtile, " ", $maxxtile, "\n";
+    print "minytile, maxytile: ", $minytile, " ", $maxytile, "\n";
     for my $wpt (@wptlist) {
         my ( $lat, $long ) = @{$wpt};
+        # ignore waypoints outside bounding box if early_crop is set
+        if ( defined($bbminlat) and
+	     $early_crop and
+	     not ( $lat > $bbminlat and
+		   $lat < $bbmaxlat and
+		   $long > $bbminlong and
+		   $long < $bbmaxlong )) {
+                     next
+		   }
         ( my $xtile, my $ytile ) = getTileNumber( $lat, $long, $zoom );
         if ( $xtile > $maxxtile ) { $maxxtile = $xtile; }
         if ( $ytile > $maxytile ) { $maxytile = $ytile; }
@@ -663,6 +722,15 @@ sub determineTiles {
     # go through all "invisible" waypoints
     for my $wpt (@invisiblewptlist) {
         my ( $lat, $long ) = @{$wpt};
+        # ignore waypoints outside bounding box if early_crop is set
+        if ( defined($bbminlat) and
+	     $early_crop and
+	     not ( $lat > $bbminlat and
+		   $lat < $bbmaxlat and
+		   $long > $bbminlong and
+		   $long < $bbmaxlong )) {
+                     next
+		   }
         ( my $xtile, my $ytile ) = getTileNumber( $lat, $long, $zoom );
         if ( $xtile > $maxxtile ) { $maxxtile = $xtile; }
         if ( $ytile > $maxytile ) { $maxytile = $ytile; }
@@ -1052,8 +1120,8 @@ sub drawAllWaypoints {
 ## cut image so that a define minimum number of pixels is left around any coordinate
 sub cutImage {
     if ( defined($bbmaxlong) && defined($bbminlong) && defined($bbminlat) && defined($bbmaxlat) ) {
-        my ( $bbminx, $bbminy ) = getPixelPosForCoordinates( $bbminlat, $bbminlong, $zoom );
-        my ( $bbmaxx, $bbmaxy ) = getPixelPosForCoordinates( $bbmaxlat, $bbmaxlong, $zoom );
+        my ( $bbminx, $bbminy ) = getPixelPosForCoordinates( $bbminlong, $bbminlat, $zoom );
+        my ( $bbmaxx, $bbmaxy ) = getPixelPosForCoordinates( $bbmaxlong, $bbmaxlat, $zoom );
 
         if ( $bbmaxx < 0 ) { $bbmaxx = 0; }
         elsif ( $bbmaxx >= $numxtiles * 256 ) { $bbmaxx = $numxtiles * 256 - 1; }
