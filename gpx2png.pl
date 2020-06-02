@@ -17,6 +17,7 @@ use Math::Trig;
 use Image::Magick;
 use LWP::UserAgent;
 use Getopt::Long qw(:config no_ignore_case);
+use File::Basename;
 use strict;
 use warnings;
 
@@ -150,6 +151,8 @@ my $photosize         = 128;
 my %geocaches         = ();
 my $trackiconfilename = undef;
 my $trackicondist     = 20;
+my $dofiletext         = undef;
+my %filetexts           = ();
 
 $|             = 1;            # disable buffering of print/STDOUT
 $main::VERSION = "20140326";
@@ -293,6 +296,8 @@ sub parseCmdLineParam {
                 %backgroundpostprocess = ( saturation => 30.0, brightness => 110.0 );
             }
         },
+        ## print a txtline for each GPXFILE
+        "filetext" => \$dofiletext,
         ## select source of images tiles
         "tiles|t=s" => sub {
             my $tilesource = $_[1];
@@ -488,6 +493,12 @@ sub HELP_MESSAGE {
     print
 "  -I N          Distance between the center of two subsequent track icons. Default: "
       . $trackicondist . "\n";
+    print
+"  --filetext     Print <textline> per GPXFILE, either from a defined waypoint with name\n";
+    print
+"                \"filetext:<textline>\" or use <filename> as <textline> in a central waypoint\n";
+    print
+"                Default: " . ( defined($dofiletext) ? "on" : "off" ) . "\n";
     print "\nGPS tracks (format .gpx) are passed as a list of filenames,\n";
     print "or the .gpx files' content is piped into gpx2png.pl\n";
 }
@@ -580,15 +591,20 @@ sub downloadFile {
 ## read GPX data from a file handle and store line segment points in @trkseglist and waypoints in @wptlist
 sub readGPXfromFile {
     my $handle             = $_[0];
+    my $filename           = $_[1];
     my @internaltrkseglist = ();
     my $scientific_notation = qr/[+\-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+\-]?\d+)?/; # from http://stackoverflow.com/a/658662/869019
     my $retrkpt            = qr/trkpt\s+([^>]+)/;
     my $relat              = qr/lat=["']($scientific_notation)["']/;
     my $relon              = qr/lon=["']($scientific_notation)["']/;
     my $retrkseg           = qr/\/trkseg/;
-    my $rewpt    = qr/^<wpt lat=["']($scientific_notation)["'] lon=["']($scientific_notation)["']/;
+    my $rewpt    = qr/^\s*<wpt lat=["']($scientific_notation)["'] lon=["']($scientific_notation)["']/;
     my $rewpttag = qr/<([^>]+)>(.*?)<\/\1>/;
     my $rewptend = qr/\/wpt/;
+    my $midlat=0;
+    my $midlon=0;
+    my $midnr=0;
+    my $filetextset=0;
 
     while (<$handle>) {
         if ( $_ =~ $retrkpt ) {
@@ -596,6 +612,13 @@ sub readGPXfromFile {
             ( my $lat ) = $line =~ $relat;
             ( my $lon ) = $line =~ $relon;
             push @internaltrkseglist, [ ( $lat, $lon ) ];
+            if ( defined($dofiletext) ) {
+                $midlat=$midlat*$midnr+$lat;
+                $midlon=$midlon*$midnr+$lon;
+                $midnr+=1;
+                $midlat=$midlat/$midnr;
+                $midlon=$midlon/$midnr;
+            }
         }
         elsif ( $_ =~ $retrkseg ) {
             print "Segment with " . @internaltrkseglist . " points\n"
@@ -628,7 +651,24 @@ sub readGPXfromFile {
             if ( $isgeocache > 0 && defined($name) ) {
                 $geocaches{$mapkey} = $name;
             }
+            if ( defined($dofiletext) ) {
+                # check if a "filetext:<txtline>" waypoint exists in the file
+                my $refiletext = qr/^filetext:(.*)/;
+                if ( $name =~ $refiletext ) {
+                    $name = $1;
+                    $filetexts{$mapkey} = $1;
+                    $filetextset=1;
+                }
+            }
         }
+    }
+
+    # add "filetext:<txt>" waypoint if it does not exist
+    if ( defined($dofiletext) && $filetextset == 0 ) {
+        $filename=basename($filename,".gpx");
+        push @wptlist, [ ( $midlat, $midlon ) ];
+        my $mapkey = $midlat . "_" . $midlon;
+        $filetexts{$mapkey} = $filename;
     }
 }
 
@@ -742,7 +782,7 @@ sub readAllGPX {
         for my $filename (@ARGV) {
             print "Reading file $filename\n" if ( $quiet == 0 );
             open( FILE, '<', $filename ) or next;
-            readGPXfromFile( \*FILE );
+            readGPXfromFile( \*FILE , $filename);
             close(FILE);
         }
     }
@@ -935,6 +975,7 @@ sub drawWaypoint {
 
     my ( $x, $y ) = getPixelPosForCoordinates( $lat, $long, $zoom );
 
+    my $filetextname = $filetexts{ $long . "_" . $lat };
 ###    my $geocachename = $geocaches{ $long . "_" . $lat };
 ###    if ( defined($geocachename) ) {
 ###        unless ( -e $geocacheiconlocal ) {
@@ -974,7 +1015,25 @@ sub drawWaypoint {
 ###        );
 ###        $image->Annotate(%textparam);
 ###    }
-###    else {
+    if ( defined($dofiletext) && defined($filetextname) ) {
+       my %textparam = %geocachestyle;
+       $textparam{x}     = $x;
+       $textparam{y}     = $y;
+       $textparam{align} = "Center";
+       $textparam{text} = $filetextname;
+       my ( undef, undef, undef, undef, $width, $height ) =
+         $image->QueryFontMetrics(%textparam);
+       $image->Draw(
+           fill      => $textparam{background},
+           primitive => 'rectangle',
+           points    => ""
+             . ( $x - $width / 2 - $textparam{offset} ) . ","
+             . ( $textparam{y} + $textparam{offset} ) . " "
+             . ( $x + $width / 2 + $textparam{offset} ) . ","
+             . ( $textparam{y} - $height )
+       );
+       $image->Annotate(%textparam);
+    } else {
 
         # not a geocache, draw plain circle
         my $x1 = $x - $waypointcircleradius;
@@ -986,7 +1045,7 @@ sub drawWaypoint {
 
         my $w = $image->Draw(%drawingStyle);
         die "\n$w" if "$w";
-###    }
+    }
 
     print "." if ( $quiet == 0 );
 }
